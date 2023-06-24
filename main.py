@@ -6,6 +6,7 @@ from aiogram import Bot, Dispatcher, executor, types
 import vk_api
 
 import config
+import setting  # Тут настройки типо времени цикла
 
 bot = Bot(token=config.BOT_API_TOKEN)
 dp = Dispatcher(bot)
@@ -50,12 +51,14 @@ def send_telegram(text_to_bot):
     }
     requests.post(url=url, data=data_to_chat)
 
-    data_to_user = {
-        'chat_id': config.user_id,
-        'text': text_to_bot,
-        'parse_mode': 'HTML'
-    }
-    requests.post(url=url, data=data_to_user)
+    # Доп сообщение в личку юзеру отключено. На тесте телеграмм банил из-за большого количества запросов
+    if setting.send_to_telegram_user:
+        data_to_user = {
+            'chat_id': config.user_id,
+            'text': text_to_bot,
+            'parse_mode': 'HTML'
+        }
+        requests.post(url=url, data=data_to_user)
 
 
 def start_parsing():
@@ -111,10 +114,18 @@ def start_parsing():
                                        f"{dt} \n" \
                                        f"{key['text']} \n"
 
-                        # Отправим сообщение в телеграмм
-                        send_telegram(text_msg)
-                        # Отправим сообщение в вк
-                        send_vk(text_msg)
+                        # Отправим сообщение в телеграм
+                        # На случай ошибки с соединением с ботом, будем отправлять каждые 50 секунд
+                        while True:
+                            try:
+                                send_telegram(text_msg)
+                                break
+                            except:
+                                time.sleep(50)
+                        # send_telegram(text_msg)
+                        # Отправим сообщение в вк при необходимости
+                        if setting.send_to_vk_user:
+                            send_vk(text_msg)
                 print(msg_id)
 
     # Запись в файл нового списка ид сообщений
@@ -132,9 +143,9 @@ def main():
     # send("Бот запущен")
     # Запустим сразу
     start_parsing()
-    # И бесконечный цикл на 3 минуты
+    # И бесконечный цикл на 3 минуты(Взято из настроек)
     while True:
-        time.sleep(180)
+        time.sleep(setting.while_time)
         start_parsing()
 
 
